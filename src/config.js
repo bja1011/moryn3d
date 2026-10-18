@@ -122,9 +122,10 @@ export const CONFIG = {
   windTurbines: {
     model: 'data/wiatrak/scene.gltf',
     /**
-     * Planned turbines digitised from the planning map wiatraki.jpg: Point
-     * features with `height` = tip height with one blade pointing straight up
-     * (red circles 280 m, purple circles 210 m).
+     * Turbines digitised from the planning map wiatraki.jpg: Point features
+     * with `height` = tip height with one blade pointing straight up and
+     * `status`: planned (red circles 280 m, purple circles 210 m) or existing
+     * (black circles near Wierzchlas/Kamionka, 100 m hub + 50 m blades = 150 m).
      */
     data: 'data/turbines.geojson',
     defaultHeight: 280,
@@ -142,7 +143,7 @@ export const CONFIG = {
     blend: 1500,
     fieldColor: '#8b9b55',
     /** How far past the terrain edge the camera may pan (m): reaches the outermost turbines. */
-    panMargin: 6000,
+    panMargin: 7500,
   },
 
   water: {

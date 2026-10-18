@@ -1,13 +1,14 @@
 {
  "type": "FeatureCollection",
- "source": "Planned wind turbines digitised from wiatraki.jpg (planning map, PUWG 2000 zone 5 / EPSG:2177 grid; calibrated on grid ticks, ~13 m per pixel). Red circles: 280 m, purple circles: 210 m (tip height).",
+ "source": "Wind turbines digitised from wiatraki.jpg (planning map, PUWG 2000 zone 5 / EPSG:2177 grid; calibrated on grid ticks, ~13 m per pixel). Planned: red circles 280 m, purple circles 210 m. Existing (black circles near Wierzchlas/Kamionka): 100 m hub + 50 m blades = 150 m. Heights are tip heights.",
  "features": [
   {
    "type": "Feature",
    "properties": {
     "id": "T01",
     "height": 210,
-    "group": "purple"
+    "group": "purple",
+    "status": "planned"
    },
    "geometry": {
     "type": "Point",
@@ -22,7 +23,8 @@
    "properties": {
     "id": "T02",
     "height": 210,
-    "group": "purple"
+    "group": "purple",
+    "status": "planned"
    },
    "geometry": {
     "type": "Point",
@@ -37,7 +39,8 @@
    "properties": {
     "id": "T03",
     "height": 210,
-    "group": "purple"
+    "group": "purple",
+    "status": "planned"
    },
    "geometry": {
     "type": "Point",
@@ -52,7 +55,8 @@
    "properties": {
     "id": "T04",
     "height": 210,
-    "group": "purple"
+    "group": "purple",
+    "status": "planned"
    },
    "geometry": {
     "type": "Point",
@@ -67,7 +71,8 @@
    "properties": {
     "id": "T05",
     "height": 210,
-    "group": "purple"
+    "group": "purple",
+    "status": "planned"
    },
    "geometry": {
     "type": "Point",
@@ -82,7 +87,8 @@
    "properties": {
     "id": "T06",
     "height": 210,
-    "group": "purple"
+    "group": "purple",
+    "status": "planned"
    },
    "geometry": {
     "type": "Point",
@@ -97,7 +103,8 @@
    "properties": {
     "id": "T07",
     "height": 210,
-    "group": "purple"
+    "group": "purple",
+    "status": "planned"
    },
    "geometry": {
     "type": "Point",
@@ -112,7 +119,8 @@
    "properties": {
     "id": "T08",
     "height": 210,
-    "group": "purple"
+    "group": "purple",
+    "status": "planned"
    },
    "geometry": {
     "type": "Point",
@@ -127,7 +135,8 @@
    "properties": {
     "id": "T09",
     "height": 210,
-    "group": "purple"
+    "group": "purple",
+    "status": "planned"
    },
    "geometry": {
     "type": "Point",
@@ -142,7 +151,8 @@
    "properties": {
     "id": "T10",
     "height": 210,
-    "group": "purple"
+    "group": "purple",
+    "status": "planned"
    },
    "geometry": {
     "type": "Point",
@@ -157,7 +167,8 @@
    "properties": {
     "id": "T11",
     "height": 210,
-    "group": "purple"
+    "group": "purple",
+    "status": "planned"
    },
    "geometry": {
     "type": "Point",
@@ -172,7 +183,8 @@
    "properties": {
     "id": "T12",
     "height": 280,
-    "group": "red"
+    "group": "red",
+    "status": "planned"
    },
    "geometry": {
     "type": "Point",
@@ -187,7 +199,8 @@
    "properties": {
     "id": "T13",
     "height": 280,
-    "group": "red"
+    "group": "red",
+    "status": "planned"
    },
    "geometry": {
     "type": "Point",
@@ -202,7 +215,8 @@
    "properties": {
     "id": "T14",
     "height": 280,
-    "group": "red"
+    "group": "red",
+    "status": "planned"
    },
    "geometry": {
     "type": "Point",
@@ -217,7 +231,8 @@
    "properties": {
     "id": "T15",
     "height": 280,
-    "group": "red"
+    "group": "red",
+    "status": "planned"
    },
    "geometry": {
     "type": "Point",
@@ -232,7 +247,8 @@
    "properties": {
     "id": "T16",
     "height": 280,
-    "group": "red"
+    "group": "red",
+    "status": "planned"
    },
    "geometry": {
     "type": "Point",
@@ -247,7 +263,8 @@
    "properties": {
     "id": "T17",
     "height": 280,
-    "group": "red"
+    "group": "red",
+    "status": "planned"
    },
    "geometry": {
     "type": "Point",
@@ -262,7 +279,8 @@
    "properties": {
     "id": "T18",
     "height": 280,
-    "group": "red"
+    "group": "red",
+    "status": "planned"
    },
    "geometry": {
     "type": "Point",
@@ -277,7 +295,8 @@
    "properties": {
     "id": "T19",
     "height": 280,
-    "group": "red"
+    "group": "red",
+    "status": "planned"
    },
    "geometry": {
     "type": "Point",
@@ -292,7 +311,8 @@
    "properties": {
     "id": "T20",
     "height": 280,
-    "group": "red"
+    "group": "red",
+    "status": "planned"
    },
    "geometry": {
     "type": "Point",
@@ -307,7 +327,8 @@
    "properties": {
     "id": "T21",
     "height": 280,
-    "group": "red"
+    "group": "red",
+    "status": "planned"
    },
    "geometry": {
     "type": "Point",
@@ -322,7 +343,8 @@
    "properties": {
     "id": "T22",
     "height": 280,
-    "group": "red"
+    "group": "red",
+    "status": "planned"
    },
    "geometry": {
     "type": "Point",
@@ -337,7 +359,8 @@
    "properties": {
     "id": "T23",
     "height": 280,
-    "group": "red"
+    "group": "red",
+    "status": "planned"
    },
    "geometry": {
     "type": "Point",
@@ -352,7 +375,8 @@
    "properties": {
     "id": "T24",
     "height": 280,
-    "group": "red"
+    "group": "red",
+    "status": "planned"
    },
    "geometry": {
     "type": "Point",
@@ -367,7 +391,8 @@
    "properties": {
     "id": "T25",
     "height": 280,
-    "group": "red"
+    "group": "red",
+    "status": "planned"
    },
    "geometry": {
     "type": "Point",
@@ -382,7 +407,8 @@
    "properties": {
     "id": "T26",
     "height": 280,
-    "group": "red"
+    "group": "red",
+    "status": "planned"
    },
    "geometry": {
     "type": "Point",
@@ -397,7 +423,8 @@
    "properties": {
     "id": "T27",
     "height": 280,
-    "group": "red"
+    "group": "red",
+    "status": "planned"
    },
    "geometry": {
     "type": "Point",
@@ -412,7 +439,8 @@
    "properties": {
     "id": "T28",
     "height": 280,
-    "group": "red"
+    "group": "red",
+    "status": "planned"
    },
    "geometry": {
     "type": "Point",
@@ -427,7 +455,8 @@
    "properties": {
     "id": "T29",
     "height": 280,
-    "group": "red"
+    "group": "red",
+    "status": "planned"
    },
    "geometry": {
     "type": "Point",
@@ -442,7 +471,8 @@
    "properties": {
     "id": "T30",
     "height": 280,
-    "group": "red"
+    "group": "red",
+    "status": "planned"
    },
    "geometry": {
     "type": "Point",
@@ -457,7 +487,8 @@
    "properties": {
     "id": "T31",
     "height": 280,
-    "group": "red"
+    "group": "red",
+    "status": "planned"
    },
    "geometry": {
     "type": "Point",
@@ -472,7 +503,8 @@
    "properties": {
     "id": "T32",
     "height": 280,
-    "group": "red"
+    "group": "red",
+    "status": "planned"
    },
    "geometry": {
     "type": "Point",
@@ -487,7 +519,8 @@
    "properties": {
     "id": "T33",
     "height": 280,
-    "group": "red"
+    "group": "red",
+    "status": "planned"
    },
    "geometry": {
     "type": "Point",
@@ -502,7 +535,8 @@
    "properties": {
     "id": "T34",
     "height": 280,
-    "group": "red"
+    "group": "red",
+    "status": "planned"
    },
    "geometry": {
     "type": "Point",
@@ -517,7 +551,8 @@
    "properties": {
     "id": "T35",
     "height": 280,
-    "group": "red"
+    "group": "red",
+    "status": "planned"
    },
    "geometry": {
     "type": "Point",
@@ -532,13 +567,206 @@
    "properties": {
     "id": "T36",
     "height": 280,
-    "group": "red"
+    "group": "red",
+    "status": "planned"
    },
    "geometry": {
     "type": "Point",
     "coordinates": [
      14.51039,
      52.86382
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "id": "E01",
+    "height": 150,
+    "group": "black",
+    "status": "existing"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     14.51025,
+     52.82621
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "id": "E02",
+    "height": 150,
+    "group": "black",
+    "status": "existing"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     14.51122,
+     52.8236
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "id": "E03",
+    "height": 150,
+    "group": "black",
+    "status": "existing"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     14.51398,
+     52.82157
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "id": "E04",
+    "height": 150,
+    "group": "black",
+    "status": "existing"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     14.51673,
+     52.81953
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "id": "E05",
+    "height": 150,
+    "group": "black",
+    "status": "existing"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     14.52212,
+     52.82615
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "id": "E06",
+    "height": 150,
+    "group": "black",
+    "status": "existing"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     14.52581,
+     52.82446
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "id": "E07",
+    "height": 150,
+    "group": "black",
+    "status": "existing"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     14.52632,
+     52.82128
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "id": "E08",
+    "height": 150,
+    "group": "black",
+    "status": "existing"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     14.53168,
+     52.83118
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "id": "E09",
+    "height": 150,
+    "group": "black",
+    "status": "existing"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     14.53251,
+     52.82335
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "id": "E10",
+    "height": 150,
+    "group": "black",
+    "status": "existing"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     14.53302,
+     52.82857
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "id": "E11",
+    "height": 150,
+    "group": "black",
+    "status": "existing"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     14.53698,
+     52.82859
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "id": "E12",
+    "height": 150,
+    "group": "black",
+    "status": "existing"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     14.53748,
+     52.82587
     ]
    }
   }
