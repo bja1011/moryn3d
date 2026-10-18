@@ -10,14 +10,18 @@
 
     <header class="panel" id="hud">
       <h1>Moryń <span>digital twin</span></h1>
-      <p class="hint">Drag to rotate · right-drag / arrows to pan · scroll to zoom · double-click to fly · click a building</p>
+      <p class="hint" data-mode="play"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move · <kbd>Shift</kbd> run · <kbd>Space</kbd> jump · mouse look · wheel zoom · <kbd>R</kbd> respawn · <kbd>M</kbd> map</p>
+      <p class="hint" data-mode="map" hidden>Drag to rotate · right-drag / arrows to pan · scroll to zoom · double-click to fly · click a building · <kbd>M</kbd> back to game</p>
       <fieldset>
         <legend>Layers</legend>
         <label><input type="checkbox" id="layer-buildings" checked /> Buildings</label>
         <label><input type="checkbox" id="layer-roads" checked /> Roads</label>
         <label><input type="checkbox" id="layer-water" checked /> Water</label>
       </fieldset>
-      <button id="reset-view" type="button">Reset view</button>
+      <div class="buttons">
+        <button id="toggle-mode" type="button">Map view</button>
+        <button id="reset-view" type="button">Respawn</button>
+      </div>
       <p class="stats" id="stats"></p>
     </header>
 
@@ -31,6 +35,10 @@
       <span id="readout"></span>
       <span class="attribution">Buildings, roads, water © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors (ODbL)</span>
     </footer>
+
+    <div id="play-prompt" hidden>
+      <div class="panel">Click to play<small>Esc releases the mouse</small></div>
+    </div>
 
     <div id="loader">
       <div class="loader-box">

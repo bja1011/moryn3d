@@ -9,6 +9,10 @@ import { createRoads } from './layers/roads.js';
 import { createWater } from './layers/water.js';
 import { createEnvironment } from './scene/environment.js';
 import { createControls } from './scene/controls.js';
+import { createInput } from './game/input.js';
+import { ColliderWorld } from './game/colliders.js';
+import { createPlayer } from './game/player.js';
+import { createFollowCamera } from './game/followCamera.js';
 import { createUI } from './ui.js';
 
 const asset = (path) => import.meta.env.BASE_URL + path;
@@ -28,7 +32,6 @@ async function main() {
   container.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
-  // near = 2 m keeps depth precision high enough for road ribbons at 9 km range.
   const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 2, 40000);
 
   const environment = createEnvironment(renderer, scene, CONFIG.environment);
@@ -63,20 +66,40 @@ async function main() {
       `${grid.size}² terrain vertices`,
   );
 
-  // --- Controls -------------------------------------------------------------
+  // --- Gameplay -------------------------------------------------------------
+  // Buildings block movement; water blocks it too (no swimming).
+  const colliders = new ColliderWorld();
+  for (const r of buildings?.records ?? []) colliders.add(r.footprint, r.top, 'building');
+  for (const p of water?.polygons ?? []) colliders.add(p.rings, Infinity, 'water');
+
+  const input = createInput(renderer.domElement);
+  const player = createPlayer({ terrain, colliders, config: CONFIG.game.player });
+  scene.add(player.object);
+  const follow = createFollowCamera(camera, { terrain, colliders, config: CONFIG.game.camera });
+
+  const spawnPlayer = () => {
+    const { spawn, spawnHeading } = CONFIG.game;
+    const [x, z] = projector.toLocal(spawn.lon, spawn.lat);
+    const heading = THREE.MathUtils.degToRad(spawnHeading);
+    player.spawn(x, z, -heading); // character yaw uses the same sign convention as the camera
+    follow.setHeading(heading);
+  };
+  spawnPlayer();
+
+  // --- Map (orbit) mode -----------------------------------------------------
   const nav = createControls(camera, renderer.domElement, terrain, CONFIG.controls);
+  nav.controls.enabled = false;
   const showView = (view) => {
     const [x, z] = projector.toLocal(view.lon, view.lat);
     nav.setView(new THREE.Vector3(x, terrain.heightAt(x, z), z), view);
   };
-  showView(readViewHash() ?? CONFIG.initialView);
-  ui.onReset(() => showView(CONFIG.initialView));
 
-  // Keep the current view in the URL (#view=lat,lon,distance,azimuth,polar) so it can be shared.
+  // Keep the map view in the URL (#view=lat,lon,distance,azimuth,polar) so it can be shared.
   let hashTimer = 0;
   nav.controls.addEventListener('change', () => {
     clearTimeout(hashTimer);
     hashTimer = setTimeout(() => {
+      if (mode !== 'map') return;
       const { target } = nav.controls;
       const offset = camera.position.clone().sub(target);
       const [lon, lat] = projector.toGeo(target.x, target.z);
@@ -88,7 +111,47 @@ async function main() {
     }, 400);
   });
 
-  // --- Picking --------------------------------------------------------------
+  // --- Mode switching -------------------------------------------------------
+  /** 'play' = third-person game, 'map' = free orbit over the whole model. */
+  let mode = 'play';
+
+  function setMode(next, view = null) {
+    mode = next;
+    const playing = next === 'play';
+    nav.controls.enabled = !playing;
+    input.setEnabled(playing);
+    // A close near plane for the character; a far one for depth precision over 9 km.
+    camera.near = playing ? CONFIG.game.camera.near : 2;
+    camera.fov = playing ? CONFIG.game.camera.fov : 50;
+    camera.updateProjectionMatrix();
+
+    if (playing) {
+      history.replaceState(null, '', location.pathname + location.search);
+      buildings?.select(null);
+      ui.hideBuilding();
+    } else if (view) {
+      showView(view);
+    } else {
+      // Look down at the player from behind the current follow direction.
+      const azimuth = THREE.MathUtils.radToDeg(-follow.yaw);
+      nav.setView(player.position, { distance: 700, azimuth: (azimuth + 180 + 360) % 360, polar: 50 });
+    }
+    ui.setMode(next, input.locked);
+  }
+
+  window.addEventListener('keydown', (e) => {
+    if (e.code === 'KeyM' && !e.repeat) setMode(mode === 'play' ? 'map' : 'play');
+    if (e.code === 'KeyR' && !e.repeat && mode === 'play') spawnPlayer();
+  });
+  ui.onToggleMode(() => setMode(mode === 'play' ? 'map' : 'play'));
+  ui.onReset(() => (mode === 'play' ? spawnPlayer() : showView(CONFIG.initialView)));
+  document.addEventListener('pointerlockchange', () => ui.setMode(mode, input.locked));
+
+  // A shared #view link opens straight into map mode; otherwise the game starts in town.
+  const sharedView = readViewHash();
+  setMode(sharedView ? 'map' : 'play', sharedView);
+
+  // --- Pointer interaction --------------------------------------------------
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
   let pendingHover = false;
@@ -103,23 +166,31 @@ async function main() {
     raycaster.setFromCamera(pointer, camera);
   };
 
-  // Cursor coordinate readout, throttled to one ray march per frame.
+  const showGeo = (x, y, z) => {
+    const [lon, lat] = projector.toGeo(x, z);
+    ui.setReadout({ lon, lat, elevation: y / CONFIG.terrain.verticalExaggeration });
+  };
+
+  // Map mode: cursor coordinate readout, throttled to one ray march per frame.
   renderer.domElement.addEventListener('pointermove', (event) => {
-    if (pendingHover) return;
+    if (mode !== 'map' || pendingHover) return;
     pendingHover = true;
     requestAnimationFrame(() => {
       pendingHover = false;
       setRay(event);
       const hit = terrain.raycast(raycaster.ray);
-      if (!hit) return ui.setReadout(null);
-      const [lon, lat] = projector.toGeo(hit.x, hit.z);
-      ui.setReadout({ lon, lat, elevation: hit.y / CONFIG.terrain.verticalExaggeration });
+      if (hit) showGeo(hit.x, hit.y, hit.z);
+      else ui.setReadout(null);
     });
   });
 
-  // A click (pointer barely moved) selects a building; drags are left to OrbitControls.
+  // Play mode: a click captures the mouse. Map mode: a click (not a drag) selects a building.
   renderer.domElement.addEventListener('pointerdown', (e) => (downAt = [e.clientX, e.clientY]));
   renderer.domElement.addEventListener('pointerup', (event) => {
+    if (mode === 'play') {
+      if (!input.locked) input.lock();
+      return;
+    }
     if (!downAt || Math.hypot(event.clientX - downAt[0], event.clientY - downAt[1]) > 4) return;
     if (!buildings?.mesh.visible) return;
     setRay(event);
@@ -133,6 +204,7 @@ async function main() {
   });
 
   renderer.domElement.addEventListener('dblclick', (event) => {
+    if (mode !== 'map') return;
     setRay(event);
     const hit = terrain.raycast(raycaster.ray);
     if (hit) nav.flyTo(hit, Math.min(camera.position.distanceTo(nav.controls.target), 600));
@@ -146,11 +218,26 @@ async function main() {
   });
 
   const timer = new THREE.Timer();
+  let readoutClock = 0;
   renderer.setAnimationLoop((timestamp) => {
     timer.update(timestamp);
     const dt = Math.min(timer.getDelta(), 0.1);
-    nav.update(dt);
-    environment.update(nav.controls.target, camera.position.distanceTo(nav.controls.target), timer.getElapsed());
+    const elapsed = timer.getElapsed();
+
+    if (mode === 'play') {
+      player.update(dt, input, follow.yaw);
+      follow.update(dt, input, player.position);
+      // Tight shadow frustum around the player: crisp character and house shadows.
+      environment.update(player.position, 60, elapsed);
+      if ((readoutClock += dt) > 0.25) {
+        readoutClock = 0;
+        showGeo(player.position.x, player.position.y, player.position.z);
+      }
+    } else {
+      nav.update(dt);
+      environment.update(nav.controls.target, camera.position.distanceTo(nav.controls.target), elapsed);
+    }
+    input.endFrame();
     renderer.render(scene, camera);
   });
 

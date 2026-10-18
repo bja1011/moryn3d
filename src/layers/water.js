@@ -11,6 +11,7 @@ import { forEachPolygon, projectRing, clipRingToSquare } from './geojson.js';
  */
 export function createWater(features, { terrain, projector, config }) {
   const geometries = [];
+  const polygons = []; // { rings, level } in scene metres, for gameplay collision
 
   for (const feature of features) {
     forEachPolygon(feature.geometry, (rings) => {
@@ -30,6 +31,7 @@ export function createWater(features, { terrain, projector, config }) {
       geometry.rotateX(-Math.PI / 2);
       geometry.translate(0, level, 0);
       geometries.push(geometry);
+      polygons.push({ rings: local, level });
     });
   }
 
@@ -48,5 +50,5 @@ export function createWater(features, { terrain, projector, config }) {
   const mesh = new THREE.Mesh(geometry, material);
   mesh.name = 'water';
   mesh.receiveShadow = true;
-  return { mesh, count: geometries.length };
+  return { mesh, count: geometries.length, polygons };
 }

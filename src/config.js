@@ -47,44 +47,70 @@ export const CONFIG = {
     levelHeight: 3.0,
     /** Walls go this far below the lowest ground point so slopes never show gaps. */
     sink: 1.5,
-    /** Fallback heights (m) by OSM `building=*` value when no height/levels tag exists. */
+    /**
+     * Fallback wall (eave) heights in metres by OSM `building=*` value, used when
+     * there is no height/levels tag. A pitched roof is added on top of this.
+     */
     defaultHeights: {
-      default: 6,
-      house: 7,
-      detached: 7,
-      semidetached_house: 7,
-      residential: 9,
+      default: 5,
+      yes: 5,
+      house: 5,
+      detached: 5,
+      semidetached_house: 5.5,
+      residential: 6.5,
       apartments: 12,
-      terrace: 8,
-      garage: 3,
-      garages: 3,
-      shed: 2.5,
+      terrace: 6,
+      garage: 2.6,
+      garages: 2.6,
+      shed: 2.4,
       roof: 3,
-      hut: 3,
-      barn: 8,
-      farm_auxiliary: 6,
-      cowshed: 6,
-      stable: 5,
+      hut: 2.6,
+      barn: 5,
+      farm_auxiliary: 4,
+      cowshed: 4,
+      stable: 3.5,
       greenhouse: 3,
-      industrial: 9,
-      warehouse: 8,
-      commercial: 8,
-      retail: 6,
-      school: 10,
-      church: 16,
-      chapel: 8,
+      industrial: 8,
+      warehouse: 7,
+      commercial: 7,
+      retail: 5,
+      school: 9,
+      church: 12,
+      chapel: 5,
     },
-    wallColor: '#e8e2d6',
+
+    roofs: {
+      /** Untagged buildings of these types get a gabled roof (when the footprint allows it). */
+      pitchedTypes: [
+        'yes', 'house', 'detached', 'semidetached_house', 'residential', 'terrace', 'farm',
+        'barn', 'farm_auxiliary', 'cowshed', 'stable', 'church', 'chapel', 'hut', 'shed',
+      ],
+      /** Default pitch in degrees when `roof:angle` / `roof:height` are missing. */
+      pitch: 38,
+      /** Pitched roofs need a roughly rectangular footprint: area / bounding-rectangle area. */
+      minRectangularity: 0.75,
+      /** Wider buildings than this (short side, m) keep a flat roof. */
+      maxSpan: 24,
+      maxHeight: 9,
+      overhang: 0.4,
+      thickness: 0.18,
+    },
+
+    windows: {
+      /** Buildings of these types get no windows. */
+      exclude: ['garage', 'garages', 'shed', 'roof', 'hut', 'greenhouse', 'carport', 'barn', 'cowshed'],
+      spacing: 3.2,
+    },
+
+    /** Plaster colours; one is picked per building unless `building:colour` is tagged. */
+    wallPalette: ['#ece5d8', '#efe4c9', '#e2d3b9', '#dcd6cc', '#f2ede2', '#e6cfae', '#d8c3a5'],
+    /** Ceramic tile and sheet roofing colours for pitched roofs. */
+    pitchedRoofPalette: ['#a4513a', '#8e3f2e', '#b3613f', '#9a4a36', '#5a5451', '#6b3a2d'],
+    /** Flat roof colours by building type. */
     roofColors: {
-      default: '#a35a44',
-      garage: '#6f6f6f',
-      garages: '#6f6f6f',
-      shed: '#7a6a58',
-      industrial: '#8a8f94',
-      warehouse: '#8a8f94',
+      default: '#7e7c78',
       greenhouse: '#cfe3e0',
       church: '#8c3b2a',
-      apartments: '#7b7f86',
     },
     highlightColor: '#ffb347',
   },
@@ -132,13 +158,50 @@ export const CONFIG = {
     shadowMapSize: 4096,
   },
 
-  /** Starting camera: looking at the Moryń market square from the south-west. */
+  /** Map-mode overview: Moryń town centre seen from the south-west. */
   initialView: {
-    lon: 14.3935,
-    lat: 52.8597,
+    lon: 14.3979,
+    lat: 52.8581,
     distance: 1500,
     azimuth: 200,
     polar: 58,
+  },
+
+  game: {
+    /**
+     * Spawn point: Plac Wolności, the old market square. (The OSM `place=town`
+     * node sits in a meadow south of the houses, so it makes a poor start.)
+     */
+    spawn: { lon: 14.3978889, lat: 52.8581098 },
+    /** Initial facing, compass degrees: toward Kościół pw. Świętego Ducha. */
+    spawnHeading: 70,
+
+    player: {
+      radius: 0.35,
+      walkSpeed: 4.5,
+      runSpeed: 9,
+      groundAccel: 12,
+      airAccel: 2.5,
+      jumpSpeed: 6.5,
+      gravity: 20,
+      /** Max drop (m) per frame that still counts as walking downhill, not falling. */
+      stepDown: 0.6,
+      turnRate: 12,
+      character: { jacket: '#c8452f', trousers: '#2f3b4c', skin: '#e6b897' },
+    },
+
+    camera: {
+      distance: 7,
+      minDistance: 2.5,
+      maxDistance: 30,
+      pitch: 0.32,
+      minPitch: -0.3,
+      maxPitch: 1.35,
+      pivotHeight: 1.6,
+      sensitivity: 0.0025,
+      fov: 60,
+      near: 0.2,
+    },
   },
 
   controls: {

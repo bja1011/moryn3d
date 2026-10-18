@@ -28,17 +28,24 @@ npm run fetch-osm    # Overpass API → public/data/{buildings,roads,water}.geoj
 OVERPASS_URL=https://overpass.kumi.systems/api/interpreter npm run fetch-osm
 ```
 
-## Controls
+## Gameplay
 
-| Action | Input |
-| --- | --- |
-| Rotate | left-drag |
-| Pan | right-drag, or arrow keys |
-| Zoom (toward the cursor) | mouse wheel |
-| Fly to a point | double-click |
-| Inspect a building | click |
+The game starts in **third-person mode** on Plac Wolności, the old market square
+in Moryń's town centre, facing the Holy Spirit church. Click the view to capture
+the mouse; Esc releases it.
 
-The current view is kept in the URL (`#view=lat,lon,distance,azimuth,polar`), so you can share a link to it.
+| Action | Play mode | Map mode (M) |
+| --- | --- | --- |
+| Move | W A S D / arrow keys | right-drag or arrow keys to pan |
+| Run / jump | Shift / Space | — |
+| Look | mouse (pointer lock) | left-drag to rotate |
+| Zoom | mouse wheel (camera distance) | mouse wheel (toward the cursor) |
+| Other | R respawn · M map view | double-click to fly · click a building · M back to game |
+
+- Buildings and water block the player. Footprints are 2D prisms in a uniform
+  grid, and the player slides along walls instead of sticking to them.
+- The follow camera pulls in when a building or a hill gets between it and the character.
+- A  link opens straight into map mode at that view.
 
 ## Project structure
 
@@ -53,7 +60,7 @@ The current view is kept in the URL (`#view=lat,lon,distance,azimuth,polar`), so
 ├── scripts/
 │   └── fetch-osm.mjs           Overpass download + OSM→GeoJSON (incl. multipolygons)
 └── src/
-    ├── main.js                 renderer, scene assembly, picking, render loop
+    ├── main.js                 renderer, scene assembly, play/map modes, picking, render loop
     ├── config.js               all tunables (CRS, terrain extent, styles, lighting)
     ├── ui.js                   DOM wiring for the HUD
     ├── style.css
@@ -62,10 +69,18 @@ The current view is kept in the URL (`#view=lat,lon,distance,azimuth,polar`), so
     │   ├── heightmap.worker.js 16-bit PNG decode + box-filter resample (off main thread)
     │   └── terrain.js          displaced PlaneGeometry, skirt, heightAt(), raycast()
     ├── shaders/
-    │   └── terrainContours.js  onBeforeCompile patch: anti-aliased 5 m contour lines
+    │   ├── terrainContours.js  onBeforeCompile patch: anti-aliased 5 m contour lines
+    │   └── buildingWindows.js  onBeforeCompile patch: procedural windows per storey
+    ├── game/
+    │   ├── input.js            keyboard state + pointer-lock mouse look
+    │   ├── character.js        procedural low-poly hiker with walk/run/jump animation
+    │   ├── colliders.js        grid of building/water polygons, circle push-out
+    │   ├── player.js           kinematic controller: camera-relative movement, gravity, terrain
+    │   └── followCamera.js     third-person orbit camera with occlusion handling
     ├── layers/
     │   ├── geojson.js          loading, geometry iteration, clipping helpers
-    │   ├── buildings.js        ExtrudeGeometry footprints → one merged mesh + picking
+    │   ├── buildings.js        footprints → walls + roofs, one merged mesh + picking
+    │   ├── roofs.js            min-area rectangle, gabled/hipped/pyramidal roof geometry
     │   ├── roads.js            terrain-draped ribbon strips → one mesh
     │   └── water.js            flat water polygons at shoreline level
     └── scene/
@@ -105,9 +120,24 @@ If you have the DEM's real metadata (e.g. a `.tfw`/`.aux.xml`), put the exact va
 - `verticalExaggeration` in the config makes the gentle relief easier to read.
 
 ### Buildings
-- Footprints, including holes and multipolygon relations, are extruded with `ExtrudeGeometry`.
-- Height comes from the `height` tag, then `building:levels × 3 m`, then a per-type default.
-- Walls start 1.5 m below the lowest ground point under the footprint, so no gap shows on slopes.
+- Footprints, including holes and multipolygon relations, are extruded with
+  `ExtrudeGeometry` up to the eaves.
+- **Pitched roofs** (`layers/roofs.js`) are built on the footprint's
+  minimum-area bounding rectangle, with overhanging eaves, a visible underside
+  and wall-coloured gable ends. OSM `roof:shape` (gabled, hipped, pyramidal,
+  half-hipped…), `roof:height`, `roof:angle` and `roof:orientation` are respected.
+- Untagged houses and farm buildings get a 38° gable when their footprint is close to
+  a rectangle (≥ 75% of its bounding rectangle, span ≤ 24 m). Complex shapes,
+  apartment blocks (4+ storeys) and courtyard buildings keep flat roofs.
+- **Windows** are drawn by a shader patch (`shaders/buildingWindows.js`): one row
+  per storey (3 m), centred on each wall, only below the eaves. Glass reflects
+  the sky, and far away the pattern fades to its average colour so facades don't shimmer.
+  Garages, sheds and barns get none.
+- Wall height comes from `height` (minus the roof), then `building:levels × 3 m`,
+  then a per-type default. Walls start 1.5 m below the lowest ground point, so no
+  gap shows on slopes.
+- Wall and roof colours come from `building:colour` / `roof:colour`, or a
+  per-building pick from plaster and roof-tile palettes.
 - All buildings are merged into a single draw call. A triangle-range table maps
   raycast hits back to OSM features for the info panel and highlighting.
 

@@ -4,6 +4,13 @@
  */
 const $ = (id) => document.getElementById(id);
 
+/** Click handler that drops focus afterwards, so Space (jump) cannot re-press the button. */
+const onClick = (id, fn) =>
+  $(id).addEventListener('click', (e) => {
+    e.currentTarget.blur();
+    fn();
+  });
+
 const STAGE_LABELS = {
   download: 'Downloading heightmap',
   decode: 'Decoding 16-bit heightmap',
@@ -58,7 +65,20 @@ export function createUI() {
     },
 
     onReset(fn) {
-      $('reset-view').addEventListener('click', fn);
+      onClick('reset-view', fn);
+    },
+
+    onToggleMode(fn) {
+      onClick('toggle-mode', fn);
+    },
+
+    /** Swaps hints and button labels; shows the click-to-play prompt until the mouse is captured. */
+    setMode(mode, locked) {
+      for (const el of document.querySelectorAll('.hint[data-mode]')) el.hidden = el.dataset.mode !== mode;
+      $('toggle-mode').textContent = mode === 'play' ? 'Map view' : 'Back to game';
+      $('reset-view').textContent = mode === 'play' ? 'Respawn' : 'Reset view';
+      $('play-prompt').hidden = mode !== 'play' || locked;
+      document.body.classList.toggle('playing', mode === 'play');
     },
 
     setStats(text) {
@@ -81,6 +101,7 @@ export function createUI() {
         ['Address', address],
         ['Height', `${record.height.toFixed(1)} m${p.height ? '' : ' (estimated)'}`],
         ['Levels', p['building:levels']],
+        ['Roof', record.roofShape],
         ['Ground', `${record.ground.toFixed(1)} m a.s.l.`],
         ['OSM', p['@id']],
       ].filter(([, v]) => v);

@@ -1,24 +1,35 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { forEachPolygon, projectRing, hashString } from './geojson.js';
+import { minAreaRect, ringArea, buildPitchedRoof } from './roofs.js';
+import { applyWindowShader } from '../shaders/buildingWindows.js';
+
+const PITCHED_SHAPES = {
+  gabled: 'gabled',
+  hipped: 'hipped',
+  pyramidal: 'pyramidal',
+  'half-hipped': 'hipped',
+  gambrel: 'gabled',
+  mansard: 'hipped',
+  saltbox: 'gabled',
+};
 
 /**
- * Extrudes OSM building footprints into one merged mesh (a single draw call
- * for the whole town) and keeps a per-building triangle range table so a
- * raycast hit can be mapped back to its OSM feature.
+ * Builds OSM buildings as one merged mesh (a single draw call for the whole
+ * town): footprints are extruded up to the eaves, near-rectangular ones get a
+ * gabled/hipped roof, and wall vertices carry the data the window shader needs.
+ * A per-building triangle range table maps raycast hits back to OSM features.
  */
 export function createBuildings(features, { terrain, projector, config }) {
   const geometries = [];
   const records = [];
   let triangleCursor = 0;
 
-  const wallBase = new THREE.Color(config.wallColor);
   const wall = new THREE.Color();
   const roof = new THREE.Color();
 
   for (const feature of features) {
     const props = feature.properties ?? {};
-    const height = buildingHeight(props, config);
     const id = String(props['@id'] ?? feature.id ?? records.length);
 
     forEachPolygon(feature.geometry, (rings) => {
@@ -29,7 +40,7 @@ export function createBuildings(features, { terrain, projector, config }) {
       if (!outer.every(([x, z]) => terrain.contains(x, z))) return;
 
       // Sample the ground under every footprint vertex: the walls start below the
-      // lowest point (so no gap shows on slopes) and the roof is measured from the mean.
+      // lowest point (so no gap shows on slopes) and heights are measured from the mean.
       let minGround = Infinity;
       let sumGround = 0;
       for (const [x, z] of outer) {
@@ -37,8 +48,13 @@ export function createBuildings(features, { terrain, projector, config }) {
         minGround = Math.min(minGround, h);
         sumGround += h;
       }
+      const groundY = sumGround / outer.length;
       const base = minGround - config.sink;
-      const top = sumGround / outer.length + height;
+
+      const rect = holes.length ? null : minAreaRect(outer);
+      const form = buildingForm(props, config, outer, rect);
+      const eaveY = groundY + form.eave;
+      const top = eaveY + form.roofH;
 
       // Shapes live in the XY plane as (east, north); ExtrudeGeometry fixes ring
       // winding itself, so CW/CCW input from OSM does not matter.
@@ -47,7 +63,7 @@ export function createBuildings(features, { terrain, projector, config }) {
 
       let geometry;
       try {
-        geometry = new THREE.ExtrudeGeometry(shape, { depth: top - base, bevelEnabled: false });
+        geometry = new THREE.ExtrudeGeometry(shape, { depth: eaveY - base, bevelEnabled: false });
       } catch {
         return; // degenerate footprint that earcut cannot triangulate
       }
@@ -58,20 +74,46 @@ export function createBuildings(features, { terrain, projector, config }) {
       geometry.translate(0, base, 0);
       geometry.deleteAttribute('uv');
 
-      // Colour walls and roofs via vertex colours so everything shares one material.
-      const shade = 0.9 + hashString(id) * 0.15;
-      wall.copy(wallBase).multiplyScalar(shade);
-      roofColor(props, config, roof);
+      wallColor(props, config, id, wall);
+      roofColor(props, config, id, form.shape !== 'flat', roof);
+
+      // Vertex colours let everything share one material: walls vs. flat roof cap.
       const normals = geometry.attributes.normal;
       const colors = new Float32Array(normals.count * 3);
-      for (let i = 0; i < normals.count; i++) {
-        const c = normals.getY(i) > 0.7 ? roof : wall;
-        c.toArray(colors, i * 3);
-      }
+      for (let i = 0; i < normals.count; i++) (normals.getY(i) > 0.7 ? roof : wall).toArray(colors, i * 3);
       geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
+      const windows = form.eave >= 2.5 && !config.windows.exclude.includes(props.building);
+      geometry.setAttribute('aWall', wallAttributes(geometry, groundY, eaveY, windows));
+
+      if (form.shape !== 'flat') {
+        const roofGeometry = buildPitchedRoof(rect, {
+          shape: form.shape,
+          across: form.across,
+          eaveY,
+          roofH: form.roofH,
+          overhang: config.roofs.overhang,
+          thickness: config.roofs.thickness,
+          roofColor: roof,
+          wallColor: wall,
+        });
+        const merged = mergeGeometries([geometry, roofGeometry], false);
+        geometry.dispose();
+        roofGeometry.dispose();
+        geometry = merged;
+      }
+
       const triangles = geometry.attributes.position.count / 3;
-      records.push({ triStart: triangleCursor, triCount: triangles, props, height, ground: minGround });
+      records.push({
+        triStart: triangleCursor,
+        triCount: triangles,
+        props,
+        height: form.eave + form.roofH,
+        roofShape: form.shape,
+        ground: minGround,
+        top,
+        footprint: local, // [outer, ...holes] in scene metres, reused for gameplay collision
+      });
       triangleCursor += triangles;
       geometries.push(geometry);
     });
@@ -84,6 +126,7 @@ export function createBuildings(features, { terrain, projector, config }) {
   geometry.computeBoundingSphere();
 
   const material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0 });
+  applyWindowShader(material, { levelHeight: config.levelHeight, spacing: config.windows.spacing });
   const mesh = new THREE.Mesh(geometry, material);
   mesh.name = 'buildings';
   mesh.castShadow = true;
@@ -97,6 +140,7 @@ export function createBuildings(features, { terrain, projector, config }) {
   return {
     mesh,
     count: records.length,
+    records,
 
     /** Building record for a raycast faceIndex (binary search over triangle ranges). */
     recordForFace(faceIndex) {
@@ -132,23 +176,96 @@ export function createBuildings(features, { terrain, projector, config }) {
   };
 }
 
-/** Height from `height`, then `building:levels`, then a per-type default. */
-function buildingHeight(props, config) {
-  const explicit = parseFloat(String(props.height ?? '').replace(',', '.'));
-  if (Number.isFinite(explicit) && explicit > 0) return explicit;
+/**
+ * Roof shape and heights for one footprint.
+ * Wall height comes from `height` (minus the roof), then `building:levels`,
+ * then a per-type default; pitched roofs need a near-rectangular footprint.
+ * @returns {{shape: string, across: boolean, eave: number, roofH: number}}
+ */
+function buildingForm(props, config, outer, rect) {
+  const { roofs, levelHeight } = config;
+  const levels = num(props['building:levels']);
+  const tagged = props['roof:shape'];
 
-  const levels = parseFloat(props['building:levels']);
-  if (Number.isFinite(levels) && levels > 0) {
-    const roofLevels = parseFloat(props['roof:levels']) || 0;
-    return (levels + roofLevels * 0.5) * config.levelHeight + 1; // +1 m for the roof structure
+  let shape = 'flat';
+  const fitsPitched =
+    rect &&
+    rect.halfShort > 1 &&
+    rect.halfShort * 2 <= roofs.maxSpan &&
+    ringArea(outer) / rect.area >= roofs.minRectangularity;
+  if (fitsPitched) {
+    if (PITCHED_SHAPES[tagged]) shape = PITCHED_SHAPES[tagged];
+    // Untagged: houses and farm buildings get gables; tall blocks stay flat.
+    else if (!tagged && roofs.pitchedTypes.includes(props.building) && !(levels >= 4)) shape = 'gabled';
   }
-  return config.defaultHeights[props.building] ?? config.defaultHeights.default;
+
+  const across = props['roof:orientation'] === 'across';
+  let roofH = 0;
+  if (shape !== 'flat') {
+    const halfSpan = across ? rect.halfLong : rect.halfShort;
+    const angle = THREE.MathUtils.degToRad(num(props['roof:angle']) ?? roofs.pitch);
+    roofH = num(props['roof:height']) ?? Math.min(halfSpan * Math.tan(angle), roofs.maxHeight);
+  }
+
+  const height = num(props.height);
+  let eave;
+  if (height) eave = Math.max(height - roofH, 2);
+  else if (levels) eave = levels * levelHeight + 0.5;
+  else eave = config.defaultHeights[props.building] ?? config.defaultHeights.default;
+
+  return { shape, across, eave, roofH };
 }
 
-function roofColor(props, config, target) {
-  const tagged = props['roof:colour'] ?? props['building:roof:colour'];
+/**
+ * Per-vertex window data for the shader: (u along wall, wall length, ground, eave).
+ * ExtrudeGeometry is non-indexed with flat normals, and both triangles of a
+ * wall quad span the full edge, so each triangle's extent along its own
+ * tangent is the length of its wall.
+ */
+function wallAttributes(geometry, groundY, eaveY, windows) {
+  const pos = geometry.attributes.position;
+  const nrm = geometry.attributes.normal;
+  const out = new Float32Array(pos.count * 4);
+  if (!windows) return new THREE.BufferAttribute(out, 4);
+
+  const s = [0, 0, 0];
+  for (let t = 0; t < pos.count; t += 3) {
+    if (Math.abs(nrm.getY(t)) > 0.3) continue; // roof/floor caps
+    let tx = -nrm.getZ(t);
+    let tz = nrm.getX(t);
+    const len = Math.hypot(tx, tz) || 1;
+    tx /= len;
+    tz /= len;
+    for (let k = 0; k < 3; k++) s[k] = pos.getX(t + k) * tx + pos.getZ(t + k) * tz;
+    const sMin = Math.min(s[0], s[1], s[2]);
+    const wallLength = Math.max(s[0], s[1], s[2]) - sMin;
+    for (let k = 0; k < 3; k++) out.set([s[k] - sMin, wallLength, groundY, eaveY], (t + k) * 4);
+  }
+  return new THREE.BufferAttribute(out, 4);
+}
+
+function wallColor(props, config, id, target) {
+  const tagged = props['building:colour'];
   // Color.setStyle() ignores unknown names, so validate the tag first.
   if (tagged && CSS.supports('color', tagged)) return target.setStyle(tagged);
-  if (props.amenity === 'place_of_worship') return target.set(config.roofColors.church);
+  const palette = config.wallPalette;
+  return target.set(palette[Math.floor(hashString(id) * palette.length)]);
+}
+
+function roofColor(props, config, id, pitched, target) {
+  const tagged = props['roof:colour'] ?? props['building:roof:colour'];
+  if (tagged && CSS.supports('color', tagged)) return target.setStyle(tagged);
+  if (props.amenity === 'place_of_worship' || props.building === 'church') return target.set(config.roofColors.church);
+  if (pitched) {
+    const palette = config.pitchedRoofPalette;
+    return target.set(palette[Math.floor(hashString(`${id}/roof`) * palette.length)]);
+  }
   return target.set(config.roofColors[props.building] ?? config.roofColors.default);
+}
+
+/** Parses an OSM numeric tag ("12", "12.5 m", "12,5"); null if absent or not positive. */
+function num(value) {
+  if (value == null) return null;
+  const n = parseFloat(String(value).replace(',', '.'));
+  return Number.isFinite(n) && n > 0 ? n : null;
 }
