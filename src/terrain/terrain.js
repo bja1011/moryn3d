@@ -58,7 +58,117 @@ export class Terrain {
     this.object = new THREE.Group();
     this.object.name = 'terrain';
     this.surface = this.#buildSurface();
-    this.object.add(this.surface, this.#buildSkirt());
+    this.skirt = this.#buildSkirt();
+    this.object.add(this.surface, this.skirt);
+  }
+
+  /**
+   * Lowers the terrain under water polygons into a lake bed.
+   *
+   * A LiDAR DEM records a lake as a flat surface at the water level, so a water
+   * plane drawn just above it z-fights from a distance. Vertices inside each
+   * polygon are pushed below its water level, deeper with distance from the
+   * shore: minDepth at the shoreline, plus `slope` m per m, capped at maxDepth.
+   * Call before placing anything else that samples heightAt().
+   *
+   * @param polygons [{ rings: [outer, ...holes] of [x, z], level }]
+   */
+  carveWaterBeds(polygons, { minDepth, slope, maxDepth }) {
+    const { gridSize: n, segments, cell, half, heights } = this;
+    const WET = 1e9;
+    const dist = new Float32Array(n * n); // 0 = dry; wet vertices get a shore distance below
+    const level = new Float32Array(n * n).fill(Infinity);
+    const xs = [];
+    let wet = 0;
+
+    // Scanline fill of each polygon onto the vertex grid (even-odd, so islands stay dry).
+    for (const { rings, level: waterLevel } of polygons) {
+      let minZ = Infinity;
+      let maxZ = -Infinity;
+      for (const [, z] of rings[0]) {
+        minZ = Math.min(minZ, z);
+        maxZ = Math.max(maxZ, z);
+      }
+      const iz0 = Math.max(0, Math.ceil((minZ + half) / cell));
+      const iz1 = Math.min(segments, Math.floor((maxZ + half) / cell));
+      for (let iz = iz0; iz <= iz1; iz++) {
+        const z = iz * cell - half;
+        xs.length = 0;
+        for (const ring of rings) {
+          for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+            const [xi, zi] = ring[i];
+            const [xj, zj] = ring[j];
+            if (zi > z !== zj > z) xs.push(xi + ((z - zi) / (zj - zi)) * (xj - xi));
+          }
+        }
+        xs.sort((a, b) => a - b);
+        for (let k = 0; k + 1 < xs.length; k += 2) {
+          const ix0 = Math.max(0, Math.ceil((xs[k] + half) / cell));
+          const ix1 = Math.min(segments, Math.floor((xs[k + 1] + half) / cell));
+          for (let ix = ix0; ix <= ix1; ix++) {
+            const i = iz * n + ix;
+            dist[i] = WET;
+            level[i] = Math.min(level[i], waterLevel);
+            wet++;
+          }
+        }
+      }
+    }
+    if (!wet) return;
+
+    // Two-pass chamfer distance transform (weights 3/4 ≈ 1/√2): distance in
+    // thirds of a cell from each wet vertex to the nearest dry one.
+    const relax = (i, j, w) => {
+      if (dist[j] + w < dist[i]) dist[i] = dist[j] + w;
+    };
+    for (let iz = 0; iz < n; iz++) {
+      for (let ix = 0; ix < n; ix++) {
+        const i = iz * n + ix;
+        if (!dist[i]) continue;
+        if (ix > 0) relax(i, i - 1, 3);
+        if (iz > 0) {
+          relax(i, i - n, 3);
+          if (ix > 0) relax(i, i - n - 1, 4);
+          if (ix < n - 1) relax(i, i - n + 1, 4);
+        }
+      }
+    }
+    for (let iz = n - 1; iz >= 0; iz--) {
+      for (let ix = n - 1; ix >= 0; ix--) {
+        const i = iz * n + ix;
+        if (!dist[i]) continue;
+        if (ix < n - 1) relax(i, i + 1, 3);
+        if (iz < n - 1) {
+          relax(i, i + n, 3);
+          if (ix < n - 1) relax(i, i + n + 1, 4);
+          if (ix > 0) relax(i, i + n - 1, 4);
+        }
+      }
+    }
+
+    for (let i = 0; i < heights.length; i++) {
+      if (!dist[i]) continue;
+      const shoreDistance = Math.min(dist[i], WET) * (cell / 3);
+      const bed = level[i] - Math.min(maxDepth, minDepth + shoreDistance * slope);
+      if (heights[i] > bed) heights[i] = bed;
+      if (heights[i] < this.minY) this.minY = heights[i];
+    }
+
+    // Push the new heights into the mesh and rebuild what depends on them.
+    const geometry = this.surface.geometry;
+    const position = geometry.attributes.position;
+    for (let i = 0; i < position.count; i++) position.setY(i, heights[i]);
+    position.needsUpdate = true;
+    geometry.computeVertexNormals();
+    geometry.setAttribute('color', this.#vertexColors(geometry));
+    geometry.computeBoundingSphere();
+
+    this.object.remove(this.skirt);
+    this.skirt.geometry.dispose();
+    this.skirt.material.dispose();
+    this.skirt = this.#buildSkirt();
+    this.object.add(this.skirt);
+    this._bounds = null; // raycast box depends on minY
   }
 
   #buildSurface() {

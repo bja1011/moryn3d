@@ -15,7 +15,7 @@ export function createEnvironment(renderer, scene, config) {
 
   // Visible sky dome. It must stay inside the camera far plane.
   const sky = makeSky(sunDir);
-  sky.scale.setScalar(20000);
+  sky.scale.setScalar(100000); // encloses the surrounding plain (~43 km from centre)
   scene.add(sky);
 
   // Image-based lighting from a small copy of the same sky.

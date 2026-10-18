@@ -4,11 +4,11 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 /**
  * OrbitControls set up for exploring terrain:
  *  - damped rotate/zoom, zoom toward the cursor, panning stays horizontal
- *  - the orbit pivot is kept inside the terrain and follows the ground height
+ *  - the orbit pivot is kept over the ground (terrain or surroundings) and follows its height
  *  - the camera never dips below the surface or past the horizon
  *  - double-click flies the pivot to the clicked point
  */
-export function createControls(camera, domElement, terrain, config) {
+export function createControls(camera, domElement, ground, config) {
   const controls = new OrbitControls(camera, domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
@@ -23,7 +23,7 @@ export function createControls(camera, domElement, terrain, config) {
   controls.maxPolarAngle = THREE.MathUtils.degToRad(config.maxPolarAngleDeg);
   controls.listenToKeyEvents(window);
 
-  const limit = terrain.half * 0.98;
+  const limit = ground.half * 0.98;
   const delta = new THREE.Vector3();
   let flight = null;
 
@@ -39,13 +39,13 @@ export function createControls(camera, domElement, terrain, config) {
     );
 
     // Ease the pivot toward the ground so rotation always orbits the surface.
-    const ground = terrain.heightAt(target.x + delta.x, target.z + delta.z);
-    delta.y = (ground - target.y) * 0.15;
+    const groundY = ground.heightAt(target.x + delta.x, target.z + delta.z);
+    delta.y = (groundY - target.y) * 0.15;
 
     target.add(delta);
     camera.position.add(delta);
 
-    const floor = terrain.heightAt(camera.position.x, camera.position.z) + config.groundClearance;
+    const floor = ground.heightAt(camera.position.x, camera.position.z) + config.groundClearance;
     if (camera.position.y < floor) camera.position.y = floor;
   }
 

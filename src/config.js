@@ -119,11 +119,42 @@ export const CONFIG = {
     },
   },
 
+  windTurbines: {
+    model: 'data/wiatrak/scene.gltf',
+    /**
+     * Planned turbines digitised from the planning map wiatraki.jpg: Point
+     * features with `height` = tip height with one blade pointing straight up
+     * (red circles 280 m, purple circles 210 m).
+     */
+    data: 'data/turbines.geojson',
+    defaultHeight: 280,
+    /** Compass bearing the rotors face: into the prevailing westerly wind. */
+    facing: 260,
+    rpm: 8,
+  },
+
+  /** Flat ground beyond the heightmap, so turbines outside the DEM have something to stand on. */
+  surroundings: {
+    enabled: true,
+    /** How far the plain extends past the terrain edge (m); the fog hides its end. */
+    extent: 40000,
+    /** Distance over which the terrain edge blends into the flat plain (m). */
+    blend: 1500,
+    fieldColor: '#8b9b55',
+    /** How far past the terrain edge the camera may pan (m): reaches the outermost turbines. */
+    panMargin: 6000,
+  },
+
   water: {
     color: '#3d6f8e',
     /** Surface sits at this percentile of shoreline ground heights, plus `lift`. */
     levelPercentile: 0.1,
     lift: 0.25,
+    /**
+     * Lake bed carved under the water so the surface never z-fights with the
+     * DEM's flat lake: depth = minDepth + slope × distance from shore, capped.
+     */
+    bed: { minDepth: 1.5, slope: 0.1, maxDepth: 8 },
   },
 
   environment: {

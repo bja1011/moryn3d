@@ -7,6 +7,8 @@ import { loadGeoJSON } from './layers/geojson.js';
 import { createBuildings } from './layers/buildings.js';
 import { createRoads } from './layers/roads.js';
 import { createWater } from './layers/water.js';
+import { loadWindTurbineModel, createWindTurbines } from './layers/windTurbines.js';
+import { createSurroundings } from './terrain/surroundings.js';
 import { createEnvironment } from './scene/environment.js';
 import { createControls } from './scene/controls.js';
 import { createUI } from './ui.js';
@@ -28,8 +30,8 @@ async function main() {
   container.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
-  // near = 2 m keeps depth precision high enough for road ribbons at 9 km range.
-  const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 2, 40000);
+  // The near plane is adjusted every frame from the camera's height (see the render loop).
+  const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 2, 100000);
 
   const environment = createEnvironment(renderer, scene, CONFIG.environment);
   const projector = createProjector(CONFIG);
@@ -40,7 +42,9 @@ async function main() {
     loadGeoJSON(asset(CONFIG.data.buildings)),
     loadGeoJSON(asset(CONFIG.data.roads)),
     loadGeoJSON(asset(CONFIG.data.water)),
+    loadGeoJSON(asset(CONFIG.windTurbines.data)),
   ]);
+  const turbineModel = loadWindTurbineModel(asset(CONFIG.windTurbines.model));
   const grid = await loadHeightGrid(CONFIG.terrain, asset(CONFIG.terrain.url), ui.progress);
 
   ui.status('Building terrain');
@@ -48,26 +52,44 @@ async function main() {
   scene.add(terrain.object);
 
   ui.status('Extruding buildings and draping roads');
-  const [buildingFeatures, roadFeatures, waterFeatures] = await vectorData;
+  const [buildingFeatures, roadFeatures, waterFeatures, turbineFeatures] = await vectorData;
   const context = { terrain, projector };
   const water = createWater(waterFeatures, { ...context, config: CONFIG.water });
+  // Water levels come from the original shoreline; the bed is carved before
+  // roads and buildings sample the surface.
+  if (water) terrain.carveWaterBeds(water.polygons, CONFIG.water.bed);
   const roads = createRoads(roadFeatures, { ...context, config: CONFIG.roads });
   const buildings = createBuildings(buildingFeatures, { ...context, config: CONFIG.buildings });
   for (const layer of [water, roads, buildings]) if (layer) scene.add(layer.mesh);
 
+  // Ground beyond the DEM (built after carving, from the final edge heights).
+  // `ground` answers heightAt() everywhere: terrain inside, the plain outside.
+  let ground = terrain;
+  if (CONFIG.surroundings.enabled) {
+    const surroundings = createSurroundings(terrain, CONFIG.surroundings);
+    scene.add(surroundings.mesh);
+    terrain.skirt.visible = false; // the diorama walls would show through the seam
+    ground = surroundings;
+  }
+
+  const gltf = await turbineModel;
+  const turbines = gltf && createWindTurbines(gltf, turbineFeatures, { ground, projector, config: CONFIG.windTurbines });
+  if (turbines) scene.add(turbines.object);
+
   ui.bindLayer('layer-buildings', buildings?.mesh);
   ui.bindLayer('layer-roads', roads?.mesh);
   ui.bindLayer('layer-water', water?.mesh);
+  ui.bindLayer('layer-turbine', turbines?.object);
   ui.setStats(
     `${buildings?.count ?? 0} buildings · ${roads?.count ?? 0} road segments · ` +
-      `${grid.size}² terrain vertices`,
+      `${turbines?.count ?? 0} wind turbines · ${grid.size}² terrain vertices`,
   );
 
   // --- Controls -------------------------------------------------------------
-  const nav = createControls(camera, renderer.domElement, terrain, CONFIG.controls);
+  const nav = createControls(camera, renderer.domElement, ground, CONFIG.controls);
   const showView = (view) => {
     const [x, z] = projector.toLocal(view.lon, view.lat);
-    nav.setView(new THREE.Vector3(x, terrain.heightAt(x, z), z), view);
+    nav.setView(new THREE.Vector3(x, ground.heightAt(x, z), z), view);
   };
   showView(readViewHash() ?? CONFIG.initialView);
   ui.onReset(() => showView(CONFIG.initialView));
@@ -150,11 +172,29 @@ async function main() {
     timer.update(timestamp);
     const dt = Math.min(timer.getDelta(), 0.1);
     nav.update(dt);
+    updateNearPlane(camera, ground);
+    turbines?.update(dt);
     environment.update(nav.controls.target, camera.position.distanceTo(nav.controls.target), timer.getElapsed());
     renderer.render(scene, camera);
   });
 
   ui.ready();
+}
+
+/**
+ * Depth precision falls with distance² / near, so a fixed 2 m near plane
+ * z-fights at multi-kilometre range. Nothing can be closer to the camera than
+ * its height above the ground (minus the tallest structures nearby), so a
+ * quarter of that height is a safe near plane: ~1 m near the ground, up to
+ * 300 m when zoomed far out.
+ */
+function updateNearPlane(camera, ground) {
+  const altitude = camera.position.y - ground.heightAt(camera.position.x, camera.position.z);
+  const near = THREE.MathUtils.clamp(altitude * 0.25, 1, 300);
+  if (Math.abs(near - camera.near) > camera.near * 0.05) {
+    camera.near = near;
+    camera.updateProjectionMatrix();
+  }
 }
 
 /** Parses #view=lat,lon,distance,azimuth,polar; returns null if absent or malformed. */
