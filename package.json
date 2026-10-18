@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "fetch-osm": "node scripts/fetch-osm.mjs"
+    "fetch-osm": "node scripts/fetch-osm.mjs",
+    "heightmap": "node scripts/downsample-heightmap.mjs moryn.png public/data/heightmap.png --size 1025"
   },
   "dependencies": {
     "fast-png": "^8.0.0",

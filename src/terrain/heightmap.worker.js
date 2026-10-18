@@ -4,8 +4,8 @@
  *
  * Browsers decode PNGs to 8 bits per channel when drawn to a canvas, which
  * would quantise 66 m of relief into 26 cm steps. fast-png keeps the full
- * 16 bits (~1 mm precision). Decoding a 4033² image takes a second or two,
- * so it runs here instead of blocking the main thread.
+ * 16 bits (~1 mm precision). Decoding runs here so a larger source (e.g. the
+ * full 4033² original) never blocks the main thread.
  */
 import { decode } from 'fast-png';
 

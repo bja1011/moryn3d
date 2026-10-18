@@ -28,8 +28,11 @@ export const CONFIG = {
     /** Elevations that the 16-bit range 0..65535 maps onto (m a.s.l.). */
     minHeight: 30,
     maxHeight: 96,
-    /** Grid resolution of the terrain mesh: 512 → 513² vertices, ~11 m cells. */
-    segments: 512,
+    /**
+     * Grid resolution of the terrain mesh: 1024 → 1025² vertices, ~5.5 m cells.
+     * Matches the 1025² heightmap (`npm run heightmap`), one pixel per vertex.
+     */
+    segments: 1024,
     /** 1.0 = true scale. Raise to make the gentle relief more readable. */
     verticalExaggeration: 1.0,
     /** Depth of the "diorama" side walls below minHeight (m). */
