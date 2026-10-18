@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Moryń · Digital Twin</title>
+  </head>
+  <body>
+    <div id="app"></div>
+
+    <header class="panel" id="hud">
+      <h1>Moryń <span>digital twin</span></h1>
+      <p class="hint">Drag to rotate · right-drag / arrows to pan · scroll to zoom · double-click to fly · click a building</p>
+      <fieldset>
+        <legend>Layers</legend>
+        <label><input type="checkbox" id="layer-buildings" checked /> Buildings</label>
+        <label><input type="checkbox" id="layer-roads" checked /> Roads</label>
+        <label><input type="checkbox" id="layer-water" checked /> Water</label>
+      </fieldset>
+      <button id="reset-view" type="button">Reset view</button>
+      <p class="stats" id="stats"></p>
+    </header>
+
+    <aside class="panel" id="info" hidden>
+      <button id="info-close" type="button" aria-label="Close">×</button>
+      <h2>Building</h2>
+      <dl id="info-body"></dl>
+    </aside>
+
+    <footer>
+      <span id="readout"></span>
+      <span class="attribution">Buildings, roads, water © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors (ODbL)</span>
+    </footer>
+
+    <div id="loader">
+      <div class="loader-box">
+        <p id="loader-text">Starting…</p>
+        <div class="bar"><div id="loader-bar"></div></div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
