@@ -66,6 +66,7 @@ The current view is kept in the URL (`#view=lat,lon,distance,azimuth,polar`), so
 │   ├── roads.geojson           }
 │   ├── water.geojson           }
 │   ├── turbines.geojson        48 wind turbines (36 planned, 12 existing) from wiatraki.jpg
+│   ├── solar.geojson           planned solar farm outlined on solary2.png (app screenshot)
 │   └── wiatrak/                wind turbine glTF model (CC BY 4.0, see licence below)
 ├── moryn.png                   original 4033² heightmap (source, not served)
 ├── scripts/
@@ -88,6 +89,7 @@ The current view is kept in the URL (`#view=lat,lon,distance,azimuth,polar`), so
     │   ├── buildings.js        ExtrudeGeometry footprints → one merged mesh + picking
     │   ├── roads.js            terrain-draped ribbon strips → one mesh
     │   ├── windTurbines.js     glTF turbines per GeoJSON point: scaled to tip height, spinning rotors
+    │   ├── solarFarm.js        PV tables on posts filling solar polygons (instanced)
     │   └── water.js            flat water polygons at shoreline level
     └── scene/
         ├── environment.js      Sky, IBL, hemisphere light, fog, shadow-following sun
@@ -181,6 +183,38 @@ Each turbine is a clone of the glTF model, scaled to its tip height. All rotors
 face WSW (into the prevailing wind) and turn at about 8 rpm, each with a random
 phase and ±10% speed. The model and its settings are in `windTurbines` in
 `src/config.js`.
+
+### Planned solar farm
+`public/data/solar.geojson` is the solar farm outlined in red on `solary2.png`, a
+screenshot of this app. It covers 6.6 ha on the south-western edge of town,
+between the built-up area and the fields.
+
+How the outline was digitised:
+- The first version was traced from a cadastral map screenshot (`solary.png`).
+  Its red hatching covered only part of the intended area, so the boundary was
+  redrawn on an app screenshot.
+- The app camera behind `solary2.png` was recovered from the image:
+  - The model is the OrbitControls camera: a ground target, distance, azimuth and
+    polar angle, no roll, a pinhole lens and the unknown screenshot crop.
+  - It was fitted to the rendered solar tables, whose ground positions are known
+    exactly, plus three landmarks: the pond, a lane junction and the main-road fork.
+  - Result: 98% of the projected tables land on panel pixels, with 1.2 px
+    landmark error. OSM roads and the lake shore line up across the whole image.
+  - Equivalent view: `#view=52.855170,14.396720,1612,201.7,57.3`.
+- The red line (~RGB 224, 32, 32, distinct from roofs) was closed, filled and
+  traced. Each contour vertex was ray-cast through the camera onto the terrain,
+  so there is no flat-ground approximation.
+- Expect the boundary to be accurate to roughly ±5–10 m.
+
+The layer fills the polygon with PV tables:
+- Each table is 12 × 4.2 m (two portrait modules), tilted 25°, with its low edge
+  0.8 m above the ground. Rows are 8.5 m apart and stay 4 m inside the boundary.
+- Rows run east-west and face true south. The projected grid is rotated about
+  3.7° from true north, so the layout is rotated to match.
+- Tables follow the slope along the row, and posts reach down to the terrain.
+- Result: 528 tables, ≈ 6 MWp (rough estimate at ~210 W/m² of module area).
+- Tables and posts are two InstancedMeshes. The layout settings are in
+  `solarFarm` in `src/config.js`.
 
 ### Surroundings
 Only 1 of the 48 turbines falls on the 5.64 km heightmap, so

@@ -9,6 +9,7 @@ import { createRoads } from './layers/roads.js';
 import { createWater } from './layers/water.js';
 import { loadWindTurbineModel, createWindTurbines } from './layers/windTurbines.js';
 import { createSurroundings } from './terrain/surroundings.js';
+import { createSolarFarm } from './layers/solarFarm.js';
 import { createEnvironment } from './scene/environment.js';
 import { createControls } from './scene/controls.js';
 import { createUI } from './ui.js';
@@ -43,6 +44,7 @@ async function main() {
     loadGeoJSON(asset(CONFIG.data.roads)),
     loadGeoJSON(asset(CONFIG.data.water)),
     loadGeoJSON(asset(CONFIG.windTurbines.data)),
+    loadGeoJSON(asset(CONFIG.solarFarm.data)),
   ]);
   const turbineModel = loadWindTurbineModel(asset(CONFIG.windTurbines.model));
   const grid = await loadHeightGrid(CONFIG.terrain, asset(CONFIG.terrain.url), ui.progress);
@@ -52,7 +54,7 @@ async function main() {
   scene.add(terrain.object);
 
   ui.status('Extruding buildings and draping roads');
-  const [buildingFeatures, roadFeatures, waterFeatures, turbineFeatures] = await vectorData;
+  const [buildingFeatures, roadFeatures, waterFeatures, turbineFeatures, solarFeatures] = await vectorData;
   const context = { terrain, projector };
   const water = createWater(waterFeatures, { ...context, config: CONFIG.water });
   // Water levels come from the original shoreline; the bed is carved before
@@ -75,14 +77,19 @@ async function main() {
   const gltf = await turbineModel;
   const turbines = gltf && createWindTurbines(gltf, turbineFeatures, { ground, projector, config: CONFIG.windTurbines });
   if (turbines) scene.add(turbines.object);
+  const solar = createSolarFarm(solarFeatures, { ground, projector, config: CONFIG.solarFarm });
+  if (solar) scene.add(solar.object);
 
   ui.bindLayer('layer-buildings', buildings?.mesh);
   ui.bindLayer('layer-roads', roads?.mesh);
   ui.bindLayer('layer-water', water?.mesh);
   ui.bindLayer('layer-turbine', turbines?.object);
+  ui.bindLayer('layer-solar', solar?.object);
   ui.setStats(
     `${buildings?.count ?? 0} buildings · ${roads?.count ?? 0} road segments · ` +
-      `${turbines?.count ?? 0} wind turbines · ${grid.size}² terrain vertices`,
+      `${turbines?.count ?? 0} wind turbines · ` +
+      (solar ? `solar farm ${solar.areaHa.toFixed(1)} ha, ${solar.tables} tables, ~${solar.peakMW.toFixed(0)} MWp · ` : '') +
+      `${grid.size}² terrain vertices`,
   );
 
   // --- Controls -------------------------------------------------------------

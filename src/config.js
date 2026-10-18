@@ -134,6 +134,24 @@ export const CONFIG = {
     rpm: 8,
   },
 
+  /** Planned solar farm outlined in red on solary2.png (see README). */
+  solarFarm: {
+    data: 'data/solar.geojson',
+    /** PV table: length along the row × depth up the slope (m), two portrait modules deep. */
+    tableLength: 12,
+    tableDepth: 4.2,
+    gap: 0.6,
+    /** Row spacing (m), wide enough that rows don't shade each other much at midday. */
+    rowPitch: 8.5,
+    tilt: 25,
+    /** Height of the low (south) edge above the ground (m). */
+    clearance: 0.8,
+    /** Keep tables this far inside the boundary (m), for the fence and service road. */
+    margin: 4,
+    panelColor: '#1c2a45',
+    postColor: '#a3a9ae',
+  },
+
   /** Flat ground beyond the heightmap, so turbines outside the DEM have something to stand on. */
   surroundings: {
     enabled: true,
